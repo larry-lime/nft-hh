@@ -1,0 +1,17 @@
+node_modules
+.env
+coverage
+coverage.json
+typechain
+typechain-types
+deployments
+
+#Hardhat folders
+cache
+artifacts
+
+#Other
+Session.vim
+gas-report.txt
+yarn-error.log
+yarn.lock
