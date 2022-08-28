@@ -38,67 +38,66 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     tokenUris = await handleTokenUris()
   }
 
-  if (!developmentChains.includes(network.name)) {
+  // originally there was a typo here
+  if (developmentChains.includes(network.name)) {
     const vrfCoordinatorV2Mock = await ethers.getContract(
       'VRFCoordinatorV2Mock'
     )
     vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address
-    const transactionResponse = await vrfCoordinatorV2Mock.createSubscription()
-    const transactionReceipt = await transactionResponse.wait()
-    subscriptionId = transactionReceipt.events[0].args.subId
-    // Fund the subscription
-    // Our mock makes it so we don't actually have to worry about sending fund
+    const tx = await vrfCoordinatorV2Mock.createSubscription()
+    const txReceipt = await tx.wait(1)
+    subscriptionId = txReceipt.events[0].args.subId
     await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, FUND_AMOUNT)
   } else {
     vrfCoordinatorV2Address = networkConfig[chainId].vrfCoordinatorV2
     subscriptionId = networkConfig[chainId].subscriptionId
   }
+  log('---------------------------')
 
-  log('----------------------------------------------------')
-  arguments = [
+  const args = [
     vrfCoordinatorV2Address,
-    networkConfig[chainId]['gasLane'],
+    networkConfig[chainId].gasLane,
     subscriptionId,
-    networkConfig[chainId]['callbackGasLimit'],
+    networkConfig[chainId].callbackGasLimit,
     tokenUris,
-    networkConfig[chainId]['mintFee'],
+    networkConfig[chainId].mintFee,
   ]
+
   const randomIpfsNft = await deploy('RandomIpfsNft', {
     from: deployer,
-    args: arguments,
+    args: args,
     log: true,
     waitConfirmations: network.config.blockConfirmations || 1,
   })
-
-  // Verify the deployment
+  log('---------------------------')
   if (
     !developmentChains.includes(network.name) &&
     process.env.ETHERSCAN_API_KEY
   ) {
     log('Verifying...')
-    await verify(randomIpfsNft.address, arguments)
+    await verify(randomIpfsNft.address, args)
   }
 }
-
 async function handleTokenUris() {
-  // Check out https://github.com/PatrickAlphaC/nft-mix for a pythonic version of uploading
-  // to the raw IPFS-daemon from https://docs.ipfs.io/how-to/command-line-quick-start/
-  // You could also look at pinata https://www.pinata.cloud/
   tokenUris = []
-  const { responses: imageUploadResponses, files } = await storeImages(
+  // store the Image in IPFS
+  // store the metadata in IPFS
+  const { responses: imagesUploadResponses, files } = await storeImages(
     imagesLocation
   )
-  for (imageUploadResponseIndex in imageUploadResponses) {
+  for (imagesUploadResponseIndex in imagesUploadResponses) {
     let tokenUriMetadata = { ...metadataTemplate }
-    tokenUriMetadata.name = files[imageUploadResponseIndex].replace('.png', '')
-    tokenUriMetadata.description = `An adorable ${tokenUriMetadata.name} pup!`
-    tokenUriMetadata.image = `ipfs://${imageUploadResponses[imageUploadResponseIndex].IpfsHash}`
+    tokenUriMetadata.name = files[imagesUploadResponseIndex].replace('.png', '')
+    tokenUriMetadata.description = `Adorable ${tokenUriMetadata.name} pup!`
+    tokenUriMetadata.image = `ipfs://${imagesUploadResponses[imagesUploadResponseIndex].IpfsHash}`
     console.log(`Uploading ${tokenUriMetadata.name}...`)
+    // store the JSON to pinata / ipfs
     const metadataUploadResponse = await storeTokenUriMetadata(tokenUriMetadata)
     tokenUris.push(`ipfs://${metadataUploadResponse.IpfsHash}`)
   }
   console.log('Token URIs uploaded! They are:')
   console.log(tokenUris)
+
   return tokenUris
 }
 
