@@ -11,23 +11,14 @@ error RandomIpfsNft__RangeOutOfBounds();
 error RandomIpfsNft__NeedMoreETHSent();
 error RandomIpfsNft__TransferFailed();
 
-contract RandomIpfsNft is
-    VRFConsumerBaseV2,
-    ERC721URIStorage,
-    Ownable /* ERC721 */
-{
-    // When we mint an NFT, we will trigger a Chainlink VRF call to get us a random number
-    // using that number, we will get a random NFT
-    // Pug Shiba Inu, St. Bernard
-    // Pug -> Super Rare
-    // Shiba -> Sort of Rare
-    // Type Declaration
+contract RandomIpfsNft is VRFConsumerBaseV2, ERC721URIStorage, Ownable {
     enum Breed {
         PUG,
         SHIBA_INU,
         ST_BERNARD
     }
 
+    // State Variables
     VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
     uint64 private immutable i_subscriptionId;
     bytes32 private immutable i_gasLane;
@@ -64,10 +55,6 @@ contract RandomIpfsNft is
         i_mintFee = mintFee;
     }
 
-    // St. Bernard -> common
-
-    // users have to pay to mint an NFT
-    // the owner of the contract can withdraw the ETH
     function requestNft() public payable returns (uint256 requestId) {
         if (msg.value < i_mintFee) {
             revert RandomIpfsNft__NeedMoreETHSent();
@@ -87,13 +74,7 @@ contract RandomIpfsNft is
         address dogOwner = s_requestIdToSender[requestId];
         uint256 newTokenId = s_tokenCounter;
         _safeMint(dogOwner, newTokenId);
-        // What does this token look like?
         uint256 moddedRng = randomWords[0] % MAX_CHANCE_VALUE;
-        // 0 - 99
-        // 7 -> Pug
-        // 12 -> Shiba Inu
-        // 88 -> St. Bernard
-        // 45 -> St. Bernard
         Breed dogBreed = getBreedFromModdedRng(moddedRng);
         s_tokenCounter += 1;
         _safeMint(dogOwner, newTokenId);
@@ -109,12 +90,10 @@ contract RandomIpfsNft is
         }
     }
 
+    // Getters
     function getBreedFromModdedRng(uint256 moddedRng) public pure returns (Breed) {
         uint256 cumulativeSum = 0;
         uint256[3] memory chanceArray = getChanceArray();
-        // moddedRng = 25
-        // i = 0
-        // cumulativeSum = 0
         for (uint256 i = 0; i < chanceArray.length; i++) {
             if (moddedRng >= cumulativeSum && moddedRng < cumulativeSum + chanceArray[i]) {
                 return Breed(i);
